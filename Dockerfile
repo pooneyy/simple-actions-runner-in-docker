@@ -2,6 +2,7 @@ FROM ghcr.io/actions/actions-runner:2.328.0
 COPY entrypoint.sh ./
 RUN mkdir -p .runner_config \
 		&& sudo ln -sf /usr/bin/python3 /usr/bin/python \
+		&& curl -sSL https://bootstrap.pypa.io/get-pip.py | sudo python \
     && sudo apt-get update \
     && sudo apt-get install -y tini \
     && mkdir -p -m 755 /etc/apt/keyrings \
