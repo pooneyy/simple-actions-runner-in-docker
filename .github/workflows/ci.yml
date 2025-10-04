@@ -184,7 +184,7 @@ jobs:
       contents: write
     
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
@@ -202,11 +202,7 @@ jobs:
           git config --global credential.helper store
           echo "https://${{ github.actor }}:${{ github.token }}@github.com" > ~/.netrcgit-credentials
           current_version=$(git describe --tags --always)
-          if [[ "$current_version" == *"v$RUNNER_VERSION"* ]]; then
-              echo "Tag already exists"
-          else
-            git push origin -d $TAG || true
-            git tag -d $TAG || true
-            git tag -a $TAG -m "Actions runner version $RUNNER_VERSION"
-            git push origin $TAG
-          fi
+          git push origin -d $TAG || true
+          git tag -d $TAG || true
+          git tag -a $TAG -m "Actions runner version $RUNNER_VERSION"
+          git push origin $TAG
