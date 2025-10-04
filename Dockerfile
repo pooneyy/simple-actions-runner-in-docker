@@ -1,6 +1,7 @@
 FROM ghcr.io/actions/actions-runner:2.328.0
-COPY launcher.sh ./
+COPY entrypoint.sh ./
 RUN mkdir -p .runner_config \
+		&& sudo ln -sf /usr/bin/python3 /usr/bin/python \
     && sudo apt-get update \
     && sudo apt-get install -y tini \
     && mkdir -p -m 755 /etc/apt/keyrings \
@@ -12,7 +13,9 @@ RUN mkdir -p .runner_config \
 		&& sudo apt-get update \
 		&& sudo apt-get install gh -y \
     && sudo apt-get clean \
+		&& sudo curl -sSL -o /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_$(dpkg --print-architecture) \
+    && sudo chmod +x /usr/local/bin/yq \
     && sudo rm -rf /var/lib/apt/lists/* \
-    && sudo chmod +x launcher.sh
+    && sudo chmod +x entrypoint.sh
 USER root
-ENTRYPOINT [ "/usr/bin/tini", "--" ,"./launcher.sh" ]
+ENTRYPOINT [ "/usr/bin/tini", "--" ,"./entrypoint.sh" ]

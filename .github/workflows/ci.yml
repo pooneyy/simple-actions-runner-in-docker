@@ -1,16 +1,10 @@
-name: Build Docker image
+name: CI
 
 on:
-  workflow_dispatch:
-    inputs:
-      task_description:
-        description: 'Task description'
-        required: false
-        default: 'A Test Image'
-        type: string
-
   push:
-    branches: [ 'renovate/ghcr.io-actions-actions-runner-*' ]
+    branches: 
+      - main
+      - renovate/ghcr.io-actions-actions-runner-*
 
 env:
   ARCHITECTURES: linux/amd64,linux/arm64
@@ -18,17 +12,16 @@ env:
   IMAGE_DESCRIPTION: Built by GitHub Actions, the associated workflow is https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
   LICENSES: MIT
 
-permissions:
-  contents: read
-  packages: write
-  id-token: write
-  attestations: write
-
 jobs:
   publish-docker:
     name: Build and publish
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -129,14 +122,13 @@ jobs:
 
   merge-prs:
     runs-on: ubuntu-latest
-    needs: publish-docker
     permissions:
       contents: write
       pull-requests: write
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5.0.0
+        uses: actions/checkout@v5
         
       - name: login to GitHub CLI
         run: gh auth login --with-token <<< "${{ github.token }}"
@@ -184,3 +176,37 @@ jobs:
             fi
             sleep 3
           done
+
+  push-tag:
+    name: Update Version Tag
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Get actions-runner version
+        run: |
+          version=$(awk '/^FROM/ {print $2}' Dockerfile | cut -d':' -f2)
+          echo "RUNNER_VERSION=$version"  >> $GITHUB_ENV
+          echo "TAG=v$version"  >> $GITHUB_ENV
+
+      - name: Add version tag
+        run: |
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
+          git config --global credential.helper store
+          echo "https://${{ github.actor }}:${{ github.token }}@github.com" > ~/.netrcgit-credentials
+          current_version=$(git describe --tags --always)
+          if [[ "$current_version" == *"v$RUNNER_VERSION"* ]]; then
+              echo "Tag already exists"
+          else
+            git push origin -d $TAG || true
+            git tag -d $TAG || true
+            git tag -a $TAG -m "Actions runner version $RUNNER_VERSION"
+            git push origin $TAG
+          fi
