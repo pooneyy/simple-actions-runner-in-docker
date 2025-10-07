@@ -4,18 +4,51 @@ on:
   push:
     branches: 
       - main
-      - renovate/ghcr.io-actions-actions-runner-*
+    paths:
+      - Dockerfile
+      - entrypoint.sh
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+    branches:
+      - renovate/*
 
 env:
   ARCHITECTURES: linux/amd64,linux/arm64
+  GH_TOKEN: ${{ github.token }}
   IMAGE_NAME: actions-runner
   IMAGE_DESCRIPTION: Built by GitHub Actions, the associated workflow is https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
   LICENSES: MIT
+  PR_NUMBER: ${{ github.event.pull_request.number }}
 
 jobs:
-  publish-docker:
+  builder-switch:
+    name: Builder switch
+    runs-on: ubuntu-latest
+    outputs:
+      switch: ${{ steps.check.outputs.switch }}
+    steps:
+      - name: Check condition
+        id: check
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            CONDITION=$(echo "${{ github.event.pull_request.head.ref }}" | grep -q "^renovate/ghcr.io-actions-actions-runner-" && echo "true" || echo "false")
+            if [ "$CONDITION" = "true" ]; then
+              echo "switch=true" >> $GITHUB_OUTPUT
+            else
+              echo "switch=false" >> $GITHUB_OUTPUT
+            fi
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            echo "switch=true" >> $GITHUB_OUTPUT
+          fi
+
+  publish-images:
     name: Build and publish
     runs-on: ubuntu-latest
+    needs: builder-switch
+    if: needs.builder-switch.outputs.switch == 'true'
     permissions:
       contents: read
       packages: write
@@ -40,7 +73,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ env.OWNER }}
-          password: ${{ github.token }}
+          password: ${{ env.GH_TOKEN }}
 
       - name: Extract metadata (tags, labels) for image registry
         id: meta
@@ -87,7 +120,6 @@ jobs:
 
       - name: Get the package id
         run: |
-          gh auth login --with-token <<< "${{ github.token }}"
           response=$(gh api \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
@@ -120,66 +152,11 @@ jobs:
           echo "</code></pre></details>" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-  merge-prs:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        
-      - name: login to GitHub CLI
-        run: gh auth login --with-token <<< "${{ github.token }}"
-        
-      - name: Check PRs
-        id: check-prs
-        run: |
-          pr_list=$( gh pr list --state open --author "app/renovate" --json number --jq '.[] | .number' )
-          
-          if [ -z "$pr_list" ]; then
-            echo "None Open PR."
-          else
-            for ((i=1; i<=60; i++)); do
-              if [ -n "$pr_list" ]; then
-                pr_list=$( gh pr list --state open --author "app/renovate" --json number,mergeStateStatus --limit 1000 --jq '.[] | select(.mergeStateStatus == "UNKNOWN") | .number' )
-                
-                echo "Waiting...($i/60)"
-              else
-                echo "prs_status=true" >> $GITHUB_OUTPUT
-                break
-              fi
-              sleep 1
-            done
-          fi
-
-      - name: Get Clean PRs
-        if: ${{ steps.check-prs.outputs.prs_status == 'true'}}
-        id: get-prs
-        run: |
-          pr_list=$( gh pr list --state open --author "app/renovate" --json number,mergeStateStatus --limit 1000 --jq 'sort_by(.number) | .[] | select(.mergeStateStatus == "CLEAN") | .number' )
-          
-          pr_list=$(echo "$pr_list" | tr '\n' ' ')
-          
-          echo "PRs to merge: $pr_list"
-          echo "pr_list=$pr_list" >> $GITHUB_OUTPUT
-          
-      - name: Merge PR
-        if: ${{ steps.get-prs.outputs.pr_list != '' }}
-        run: |
-          for pr in ${{ steps.get-prs.outputs.pr_list }}; do
-            if ! gh pr merge $pr --squash --delete-branch --body ""; then
-              echo "⚠️ Merge PR #$pr Failed"
-            else
-              echo "✅ Merge PR #$pr Success"
-            fi
-            sleep 3
-          done
-
   push-tag:
     name: Update Version Tag
     runs-on: ubuntu-latest
+    needs: builder-switch
+    if: needs.builder-switch.outputs.switch == 'true'
     permissions:
       contents: write
     
@@ -206,3 +183,34 @@ jobs:
           git tag -d $TAG || true
           git tag -a $TAG -m "Actions runner version $RUNNER_VERSION"
           git push origin $TAG
+
+  merge-pr:
+    name: Auto Merge the PR
+    runs-on: ubuntu-latest
+    needs: 
+      - publish-images
+      - push-tag
+    if: |
+      (needs.publish-images.result == 'success' || needs.publish-images.result == 'skipped') &&
+      (needs.push-tag.result == 'success' || needs.push-tag.result == 'skipped')
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.base_ref }}
+      
+      - name: Merge PR
+        run: |
+          max_attempts=5
+          for attempt in $(seq 1 $max_attempts); do
+            if gh pr merge $PR_NUMBER --squash --delete-branch --body ""; then
+              echo "✅ Merge PR #$PR_NUMBER Success"
+              exit 0
+            else
+              echo "⚠️ Merge PR #$PR_NUMBER Failed ($attempt / $max_attempts)"
+              sleep 5
+            fi
+          done
