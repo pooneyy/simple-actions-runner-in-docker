@@ -8,7 +8,15 @@ A simple self-hosted actions runner running in a container
 
 ## Features
 
-- Supports Docker-in-Docker
+- Supports Docker-out-of-Docker
+
+  > In some cases, `--privileged` is required, such as when your workflow uses `docker/setup-qemu-action`.
+
+- Built-in `python` `pip`
+
+  > You can use [actions/setup-python](https://github.com/actions/setup-python) to install your desired Python version.
+
+- Built-in GitHub CLI
 
 ### Environment Variables
 | Parameter | Required | Description |

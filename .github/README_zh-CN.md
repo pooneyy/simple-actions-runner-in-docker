@@ -6,7 +6,15 @@
 
 ## 功能
 
-- 支持 Docker-in-Docker
+- 支持 Docker-out-of-Docker
+
+  > 某些情况下需要使用 `--privileged` ，比如当你的工作流中使用 `docker/setup-qemu-action`。
+
+- 内置 `python`  `pip`
+
+  > 你可以使用 [actions/setup-python](https://github.com/actions/setup-python) 安装自己所需的python版本
+
+- 内置 GitHub CLI
 
 ### 环境变量
 | 参数 | 是否必须 | 说明 |
