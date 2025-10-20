@@ -12,8 +12,10 @@ on:
       - opened
       - synchronize
       - reopened
-    branches:
-      - renovate/*
+    branches: 
+      - main
+    paths:
+      - Dockerfile
 
 env:
   ARCHITECTURES: linux/amd64,linux/arm64
@@ -191,6 +193,7 @@ jobs:
       - publish-images
       - push-tag
     if: |
+      ${{ github.event.pull_request != null && github.event.pull_request.number > 0 }} &&
       (needs.publish-images.result == 'success' || needs.publish-images.result == 'skipped') &&
       (needs.push-tag.result == 'success' || needs.push-tag.result == 'skipped')
     permissions:
