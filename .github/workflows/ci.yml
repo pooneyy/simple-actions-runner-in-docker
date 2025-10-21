@@ -1,12 +1,12 @@
 name: CI
 
 on:
-  push:
-    branches: 
-      - main
-    paths:
-      - Dockerfile
-      - entrypoint.sh
+  # push:
+  #   branches: 
+  #     - main
+  #   paths:
+  #     - Dockerfile
+  #     - entrypoint.sh
   pull_request:
     types:
       - opened
@@ -16,6 +16,16 @@ on:
       - main
     paths:
       - Dockerfile
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'Release or test'
+        required: true
+        default: test
+        type: choice
+        options:
+        - test
+        - release
 
 env:
   ARCHITECTURES: linux/amd64,linux/arm64
@@ -36,13 +46,17 @@ jobs:
         id: check
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            CONDITION=$(echo "${{ github.event.pull_request.head.ref }}" | grep -q "^renovate/ghcr.io-actions-actions-runner-" && echo "true" || echo "false")
-            if [ "$CONDITION" = "true" ]; then
-              echo "switch=true" >> $GITHUB_OUTPUT
-            else
-              echo "switch=false" >> $GITHUB_OUTPUT
+            if [ "${{ github.actor }}" == "renovate[bot]" ]; then
+              CONDITION=$(echo "${{ github.event.pull_request.head.ref }}" | grep -q "^renovate/ghcr.io-actions-actions-runner-" && echo "true" || echo "false")
+              if [ "$CONDITION" = "true" ]; then
+                echo "switch=true" >> $GITHUB_OUTPUT
+              else
+                echo "switch=false" >> $GITHUB_OUTPUT
+              fi
             fi
           elif [ "${{ github.event_name }}" = "push" ]; then
+            echo "switch=true" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "switch=true" >> $GITHUB_OUTPUT
           fi
 
@@ -69,6 +83,15 @@ jobs:
           current_version=$(awk '/^FROM/ {print $2}' Dockerfile | cut -d':' -f2)
           echo "current version: $current_version"
           echo "IMAGE_TAG=$(awk '/^FROM/ {print $2}' Dockerfile | cut -d':' -f2)" >> $GITHUB_ENV
+
+      - name: Set image tags
+        id: set-tags
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ] || [ "${{ inputs.release }}" == "release" ]; then
+            echo "tags=${{ env.IMAGE_FULL_NAME }}:${{ env.IMAGE_TAG }},${{ env.IMAGE_FULL_NAME }}:latest" >> $GITHUB_OUTPUT
+          elif [ "${{ inputs.release }}" == "test" ]; then
+            echo "tags=${{ env.IMAGE_FULL_NAME }}:test" >> $GITHUB_OUTPUT
+          fi
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -105,9 +128,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: |
-            ${{ env.IMAGE_FULL_NAME }}:${{ env.IMAGE_TAG }}
-            ${{ env.IMAGE_FULL_NAME }}:latest
+          tags: ${{ steps.set-tags.outputs.tags }}
           annotations: ${{ steps.meta.outputs.annotations }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -158,7 +179,9 @@ jobs:
     name: Update Version Tag
     runs-on: ubuntu-latest
     needs: builder-switch
-    if: needs.builder-switch.outputs.switch == 'true'
+    if: |
+      needs.builder-switch.outputs.switch == 'true' &&
+      (inputs.release == 'release' || github.event_name == 'pull_request')
     permissions:
       contents: write
     
@@ -193,7 +216,7 @@ jobs:
       - publish-images
       - push-tag
     if: |
-      ${{ github.event.pull_request != null && github.event.pull_request.number > 0 }} &&
+      github.event_name == 'pull_request' &&
       (needs.publish-images.result == 'success' || needs.publish-images.result == 'skipped') &&
       (needs.push-tag.result == 'success' || needs.push-tag.result == 'skipped')
     permissions:
