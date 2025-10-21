@@ -71,8 +71,5 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./config:/home/runner/.runner_config
-
-volumes:
-  actions-runner-config:
-    driver: local
+      - ./logs:/home/runner/.runner_logs
 ```

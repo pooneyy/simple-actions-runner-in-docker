@@ -73,4 +73,5 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./config:/home/runner/.runner_config
+      - ./logs:/home/runner/.runner_logs
 ```
