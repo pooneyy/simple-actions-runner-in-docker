@@ -1,6 +1,13 @@
 #!/bin/bash
 
-SCRIPT_NAME=$(basename "$0")-$(date +"%Y%m%d-%H%M%S")
+CONTAINER_CREATE_TIME="/tmp/CONTAINER_CREATE_TIME"
+if [ ! -f "$CONTAINER_CREATE_TIME" ]; then
+    create_time=$(date +"%Y%m%d-%H%M%S")
+    echo "$create_time" > "$CONTAINER_CREATE_TIME"
+else
+    create_time=$(cat "$CONTAINER_CREATE_TIME")
+fi
+SCRIPT_NAME=$(basename "$0")-$create_time
 LOCK_FILE="/tmp/${SCRIPT_NAME}.lock"
 LOG_FILE="./.runner_logs/${SCRIPT_NAME}.log"
 RUNNER_PID=""
