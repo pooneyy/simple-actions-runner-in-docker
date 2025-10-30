@@ -55,7 +55,7 @@ services:
   actions-runner:
     image: ghcr.io/pooneyy/actions-runner:latest
     container_name: actions-runner
-    privileged: true
+    privileged: false # Privilege Mode: Manually enabled for permission issues
     restart: always
     environment:
       ROLE: repos

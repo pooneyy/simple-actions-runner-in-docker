@@ -53,7 +53,7 @@ services:
   actions-runner:
     image: ghcr.io/pooneyy/actions-runner:latest
     container_name: actions-runner
-    privileged: true
+    privileged: false # 特权模式: 遇到权限问题时手动启用
     restart: always
     environment:
       ROLE: repos
