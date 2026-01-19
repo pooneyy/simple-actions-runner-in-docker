@@ -2,9 +2,8 @@ FROM ghcr.io/actions/actions-runner:2.330.0
 COPY entrypoint.sh ./
 RUN    mkdir -p .runner_config .runner_logs \
     && sudo ln -sf /usr/bin/python3 /usr/bin/python \
-    && curl -sSL https://bootstrap.pypa.io/get-pip.py | sudo python \
     && sudo apt-get update \
-    && sudo apt-get install -y tini \
+    && sudo apt-get install -y pipx python3-pip tini \
     && mkdir -p -m 755 /etc/apt/keyrings \
     && out=$(mktemp) && curl -sSL -o "$out" https://cli.github.com/packages/githubcli-archive-keyring.gpg \
     && cat $out | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \

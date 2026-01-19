@@ -12,11 +12,11 @@ A simple self-hosted actions runner running in a container
 
   > In some cases, `--privileged` is required, such as when your workflow uses `docker/setup-qemu-action`.
 
-- Built-in `python` `pip`
+- Pre-installation `python` `pip` `pipx`
 
   > You can use [actions/setup-python](https://github.com/actions/setup-python) to install your desired Python version.
 
-- Built-in GitHub CLI
+- Pre-installation GitHub CLI
 
 ### Environment Variables
 | Parameter | Required | Description |
@@ -57,6 +57,7 @@ services:
     container_name: actions-runner
     privileged: false # Privilege Mode: Manually enabled for permission issues
     restart: always
+    pull_policy: always
     environment:
       ROLE: repos
       REPO: pooneyy/simple-actions-runner-in-docker

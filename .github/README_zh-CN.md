@@ -10,11 +10,11 @@
 
   > 某些情况下需要使用 `--privileged` ，比如当你的工作流中使用 `docker/setup-qemu-action`。
 
-- 内置 `python`  `pip`
+- 预安装 `python`  `pip` `pipx`
 
-  > 你可以使用 [actions/setup-python](https://github.com/actions/setup-python) 安装自己所需的python版本
+  > 你可以使用 [actions/setup-python](https://github.com/actions/setup-python) 安装自己所需的 Python 版本
 
-- 内置 GitHub CLI
+- 预安装 GitHub CLI
 
 ### 环境变量
 | 参数 | 是否必须 | 说明 |
@@ -46,7 +46,7 @@
 >
 > 
 
-推荐使用docker-compose.yml来启动容器，下面以为本仓库部署自托管 Runner 为例：
+推荐使用 docker-compose.yml 来启动容器，下面以为本仓库部署自托管 Runner 为例：
 
 ```markdown
 services:
@@ -55,6 +55,7 @@ services:
     container_name: actions-runner
     privileged: false # 特权模式: 遇到权限问题时手动启用
     restart: always
+    pull_policy: always
     environment:
       ROLE: repos
       REPO: pooneyy/simple-actions-runner-in-docker

@@ -24,8 +24,8 @@ on:
         default: test
         type: choice
         options:
-        - test
-        - release
+          - test
+          - release
 
 env:
   ARCHITECTURES: linux/amd64,linux/arm64
