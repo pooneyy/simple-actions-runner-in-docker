@@ -1,4 +1,4 @@
-FROM ghcr.io/actions/actions-runner:2.330.0
+FROM ghcr.io/actions/actions-runner:2.331.0
 COPY entrypoint.sh ./
 RUN    mkdir -p .runner_config .runner_logs \
     && sudo ln -sf /usr/bin/python3 /usr/bin/python \
