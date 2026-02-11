@@ -2,8 +2,11 @@ FROM ghcr.io/actions/actions-runner:2.331.0
 COPY entrypoint.sh ./
 RUN    mkdir -p .runner_config .runner_logs \
     && sudo ln -sf /usr/bin/python3 /usr/bin/python \
-    && sudo apt-get update \
-    && sudo apt-get install -y pipx python3-pip tini \
+    && sudo apt-get update -qq \
+    && sudo apt-get install -qq -y \
+            automake binutils-dev cmake curl git-lfs libssl-dev libstdc++-9-dev \
+            libstdc++-10-dev libstdc++-11-dev libstdc++-12-dev libstdc++-13-dev \
+            libstdc++-14-dev libtool pipx pkg-config python3-pip rename tini wget \
     && mkdir -p -m 755 /etc/apt/keyrings \
     && out=$(mktemp) && curl -sSL -o "$out" https://cli.github.com/packages/githubcli-archive-keyring.gpg \
     && cat $out | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
