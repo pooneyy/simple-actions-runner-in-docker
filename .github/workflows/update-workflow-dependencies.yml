@@ -1,0 +1,45 @@
+name: Update Workflow Dependencies
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+    branches:
+      - main
+    paths:
+      - '.github/workflows/**'
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  PR_NUMBER: ${{ github.event.pull_request.number }}
+
+jobs:
+  auto-merge:
+    name: Auto Merge Renovate PR
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'pull_request' &&
+      github.actor == 'renovate[bot]'
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.base_ref }}
+      
+      - name: Merge PR
+        run: |
+          max_attempts=5
+          for attempt in $(seq 1 $max_attempts); do
+            if gh pr merge $PR_NUMBER --squash --delete-branch --body ""; then
+              echo "✅ Merge PR #$PR_NUMBER Success"
+              exit 0
+            else
+              echo "⚠️ Merge PR #$PR_NUMBER Failed ($attempt / $max_attempts)"
+              sleep 5
+            fi
+          done
